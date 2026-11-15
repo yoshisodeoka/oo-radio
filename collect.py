@@ -275,6 +275,7 @@ def record_kiwi(cfg, source, freq_khz, seconds, when):
     if not os.path.exists(script):
         raise SystemExit("kiwiclient is missing: run `python3 collect.py setup` first")
     mode = source.get("mode", "usb")
+    os.makedirs(cfg["out_dir"], exist_ok=True)
     for host, port in pick_receivers(cfg, source, freq_khz):
         tmp = tempfile.mkdtemp(prefix="kiwi-", dir=cfg["out_dir"])
         cmd = [sys.executable, script, "-s", host, "-p", str(port),
