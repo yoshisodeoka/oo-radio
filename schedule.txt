@@ -1,0 +1,16 @@
+# Timed numbers-station transmissions. One per line, all times UTC:
+#
+#   HH:MM  minutes  kHz  mode  name  [days]
+#
+# days: daily (default), mon,wed,fri, or a range like mon-fri.
+# Recording starts 1 minute early and runs 1 minute past the end.
+# The file is re-read while `collect.py run` is going, so you can add lines any time.
+#
+# Copy transmissions from the priyom.org schedule (it changes month to month).
+# Voice stations (E-, S-, G-, V- and M- series) are the ones with spoken numbers.
+# Use the frequency exactly as priyom lists it; mode is usually usb for voice,
+# am for stations priyom marks AM, and cw for morse (M-series).
+#
+# Examples of the format only (not real schedule entries):
+# 18:00  10  5000  usb  e-example  mon-fri
+# 21:30   8  7000  am   v-example  sat,sun

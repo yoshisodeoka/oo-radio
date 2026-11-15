@@ -1,0 +1,62 @@
+{
+  "out_dir": "recordings",
+  "near": [52.0, 10.0],
+  "receivers": [],
+  "receivers_to_try": 4,
+  "lead_seconds": 60,
+  "tail_seconds": 60,
+
+  "sources": [
+    {
+      "name": "uvb76",
+      "label": "UVB-76 'The Buzzer' (Russia), always on",
+      "type": "kiwi", "freq_khz": 4625, "mode": "usb",
+      "near": [55.0, 30.0],
+      "every_hours": 6, "offset_minutes": 5, "minutes": 15
+    },
+    {
+      "name": "pip",
+      "label": "S28 'The Pip' (Russia), always on; day/night frequency switch times are approximate",
+      "type": "kiwi", "mode": "usb",
+      "freqs": [{"khz": 5448, "utc": "5-19"}, {"khz": 3756, "utc": "19-5"}],
+      "near": [55.0, 30.0],
+      "every_hours": 8, "offset_minutes": 125, "minutes": 10
+    },
+    {
+      "name": "squeaky",
+      "label": "S30 'The Squeaky Wheel' (Russia), always on; day/night frequency switch times are approximate",
+      "type": "kiwi", "mode": "usb",
+      "freqs": [{"khz": 5473, "utc": "5-19"}, {"khz": 3828, "utc": "19-5"}],
+      "near": [55.0, 30.0],
+      "every_hours": 8, "offset_minutes": 245, "minutes": 10
+    },
+    {
+      "name": "wwv",
+      "label": "WWV time signal (NIST, Colorado). US government, public domain",
+      "type": "kiwi", "freq_khz": 10000, "mode": "am",
+      "near": [40.7, -105.0],
+      "every_hours": 12, "offset_minutes": 30, "minutes": 10
+    },
+    {
+      "name": "chu",
+      "label": "CHU time signal (National Research Council, Ottawa). French/English talking clock",
+      "type": "kiwi", "freq_khz": 7850, "mode": "am",
+      "near": [45.3, -75.8],
+      "every_hours": 12, "offset_minutes": 390, "minutes": 10
+    },
+    {
+      "name": "noaa-example",
+      "label": "NOAA Weather Radio stream: paste a stream URL from wxradio.org, then set enabled to true",
+      "type": "stream", "url": "https://PASTE-STREAM-URL-HERE",
+      "enabled": false,
+      "every_hours": 12, "minutes": 20
+    },
+    {
+      "name": "locus-example",
+      "label": "Locus Sonus open mic: paste a stream URL from locusonus.org/soundmap, then set enabled to true",
+      "type": "stream", "url": "https://PASTE-STREAM-URL-HERE",
+      "enabled": false,
+      "every_hours": 12, "minutes": 20
+    }
+  ]
+}
