@@ -5,30 +5,37 @@
   "receivers_to_try": 4,
   "lead_seconds": 60,
   "tail_seconds": 60,
+  "flac": true,
+
+  "priyom": {
+    "enabled": true,
+    "minutes": 12,
+    "only": ["E", "S", "V", "G", "M", "XP"]
+  },
 
   "sources": [
     {
       "name": "uvb76",
       "label": "UVB-76 'The Buzzer' (Russia), always on",
       "type": "kiwi", "freq_khz": 4625, "mode": "usb",
-      "near": [55.0, 30.0],
-      "every_hours": 6, "offset_minutes": 5, "minutes": 15
+      "near": [52.0, 10.0],
+      "every_hours": 4, "offset_minutes": 5, "minutes": 10
     },
     {
       "name": "pip",
       "label": "S28 'The Pip' (Russia), always on; day/night frequency switch times are approximate",
       "type": "kiwi", "mode": "usb",
       "freqs": [{"khz": 5448, "utc": "5-19"}, {"khz": 3756, "utc": "19-5"}],
-      "near": [55.0, 30.0],
-      "every_hours": 8, "offset_minutes": 125, "minutes": 10
+      "near": [52.0, 10.0],
+      "every_hours": 4, "offset_minutes": 65, "minutes": 10
     },
     {
       "name": "squeaky",
       "label": "S30 'The Squeaky Wheel' (Russia), always on; day/night frequency switch times are approximate",
       "type": "kiwi", "mode": "usb",
       "freqs": [{"khz": 5473, "utc": "5-19"}, {"khz": 3828, "utc": "19-5"}],
-      "near": [55.0, 30.0],
-      "every_hours": 8, "offset_minutes": 245, "minutes": 10
+      "near": [52.0, 10.0],
+      "every_hours": 4, "offset_minutes": 125, "minutes": 10
     },
     {
       "name": "wwv",

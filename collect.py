@@ -39,6 +39,15 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 KIWI_LIST_URL = "http://rx.linkfanel.net/kiwisdr_com.js"
 KIWI_CACHE = os.path.join(HERE, ".kiwi-list-cache.json")
 KIWICLIENT_DIR = os.path.join(HERE, "kiwiclient")
+PRIYOM_URL = "https://calendar2.priyom.org/events"
+PRIYOM_CACHE = os.path.join(HERE, ".priyom-cache.json")
+# where to listen from, by priyom's [Target: ...] remark; others use the config default
+TARGET_NEAR = {
+    "east asia": [24.5, 121.5],
+    "north america": [40.0, -90.0],
+    "middle east": [33.0, 35.5],
+    "pacific": [21.3, -157.8],
+}
 USER_TAG = "oo-radio-collect"
 
 log_lock = threading.Lock()
@@ -62,6 +71,11 @@ def load_config(path):
     cfg.setdefault("near", [52.0, 10.0])
     cfg.setdefault("receivers", [])
     cfg.setdefault("sources", [])
+    cfg.setdefault("flac", True)
+    cfg.setdefault("priyom", {})
+    cfg["priyom"].setdefault("enabled", False)
+    cfg["priyom"].setdefault("minutes", 12)
+    cfg["priyom"].setdefault("only", [])
     if not os.path.isabs(cfg["out_dir"]):
         cfg["out_dir"] = os.path.join(HERE, cfg["out_dir"])
     return cfg
@@ -152,6 +166,21 @@ def upcoming(cfg, schedule, start, hours):
                 jobs.append((rec_start, item, item["freq_khz"], secs))
             day += dt.timedelta(days=1)
 
+    if cfg["priyom"]["enabled"]:
+        try:
+            events = priyom_jobs(cfg, start, hours)
+        except Exception as e:
+            say(f"could not read priyom schedule ({e})")
+            events = []
+        seen = set()
+        for t, item in events:
+            rec_start = t - lead
+            key = (item["name"], t)
+            if start <= rec_start < end and key not in seen:  # one frequency per station slot
+                seen.add(key)
+                secs = cfg["priyom"]["minutes"] * 60 + cfg["lead_seconds"] + tail
+                jobs.append((rec_start, item, item["freq_khz"], secs))
+
     for src in cfg["sources"]:
         if not src.get("enabled", True):
             continue
@@ -167,6 +196,65 @@ def upcoming(cfg, schedule, start, hours):
 
     jobs.sort(key=lambda j: j[0])
     return jobs
+
+
+def parse_priyom(summary, only):
+    """'E11 5810kHz USB [Target: ...]' -> source dict, or None to skip."""
+    m = re.match(r"^([\w/-]+) (\d+(?:\.\d+)?) ?kHz(?: ([A-Z][A-Z/]*))?(?:.*?\[Target: ([\w -]+)\])?", summary, re.I)
+    if not m:
+        return None
+    station, khz, mode, target = m.group(1), float(m.group(2)), (m.group(3) or "USB").upper(), m.group(4)
+    if only and not any(station.upper().startswith(p.upper()) for p in only):
+        return None
+    if "CW" in mode and "RTTY" not in mode:
+        kmode = "cw"
+    elif mode == "LSB":
+        kmode = "lsb"
+    elif "AM" in mode:
+        kmode = "am"
+    else:
+        kmode = "usb"
+    src = {"name": station.lower().replace("/", "-"), "type": "kiwi", "mode": kmode,
+           "freq_khz": khz, "label": summary, "credit": "schedule: priyom.org"}
+    if target and target.strip().lower() in TARGET_NEAR:
+        src["near"] = TARGET_NEAR[target.strip().lower()]
+    return src
+
+
+def fetch_priyom(start, hours):
+    """Timed transmissions from priyom.org's calendar, cached for 6 hours."""
+    lo = start - dt.timedelta(hours=1)
+    hi = start + dt.timedelta(hours=hours + 1)
+    cache = None
+    if os.path.exists(PRIYOM_CACHE):
+        with open(PRIYOM_CACHE) as f:
+            cache = json.load(f)
+        fresh = time.time() - cache.get("fetched", 0) < 6 * 3600
+        covers = cache["min"] <= lo.isoformat() and hi.isoformat() <= cache["max"]
+        if not (fresh and covers):
+            cache = None
+    if cache is None:
+        tmin = lo.replace(minute=0, second=0, microsecond=0)
+        tmax = tmin + dt.timedelta(hours=max(26, hours + 3))
+        q = f"timeMin={tmin.strftime('%Y-%m-%dT%H:%M:%S.000Z')}&timeMax={tmax.strftime('%Y-%m-%dT%H:%M:%S.000Z')}"
+        req = urllib.request.Request(f"{PRIYOM_URL}?{q}", headers={"User-Agent": USER_TAG})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            items = json.load(r).get("items", [])
+        cache = {"fetched": time.time(), "min": tmin.isoformat(), "max": tmax.isoformat(),
+                 "items": [{"summary": i["summary"], "start": i["start"]["dateTime"]} for i in items]}
+        with open(PRIYOM_CACHE, "w") as f:
+            json.dump(cache, f)
+    return cache["items"]
+
+
+def priyom_jobs(cfg, start, hours):
+    out = []
+    for i in fetch_priyom(start, hours):
+        src = parse_priyom(i["summary"], cfg["priyom"]["only"])
+        if src:
+            t = dt.datetime.fromisoformat(i["start"].replace("Z", "+00:00"))
+            out.append((t, src))
+    return out
 
 
 # ---------------------------------------------------------------- receivers
@@ -270,6 +358,19 @@ def write_log(cfg, entry):
         f.write(json.dumps(entry) + "\n")
 
 
+def to_flac(cfg, wav):
+    """Losslessly shrink a finished WAV (about half the size); keep the WAV if anything fails."""
+    if not cfg["flac"] or not shutil.which("ffmpeg"):
+        return wav
+    flac = wav[:-4] + ".flac"
+    r = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", wav, flac],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if r.returncode == 0 and os.path.exists(flac) and os.path.getsize(flac) > 0:
+        os.remove(wav)
+        return flac
+    return wav
+
+
 def record_kiwi(cfg, source, freq_khz, seconds, when):
     script = os.path.join(KIWICLIENT_DIR, "kiwirecorder.py")
     if not os.path.exists(script):
@@ -299,6 +400,7 @@ def record_kiwi(cfg, source, freq_khz, seconds, when):
             dest = out_path(cfg, source["name"], when, f"{freq_khz:g}kHz_{host}")
             shutil.move(got, dest)
             shutil.rmtree(tmp, ignore_errors=True)
+            dest = to_flac(cfg, dest)
             say(f"{source['name']}: saved {os.path.relpath(dest, HERE)} ({size / 1e6:.1f} MB)")
             return {"file": dest, "receiver": f"{host}:{port}", "bytes": size}
         shutil.rmtree(tmp, ignore_errors=True)
