@@ -172,8 +172,8 @@ class Library:
                 for _ in range(6):
                     off = a + (self.rng.uniform(0, slack) if slack > 0 else 0)
                     if reuse or self.free(path, off, off + length):
-                        # prefer longer pieces; the seed breaks near-ties
-                        key = length + self.rng.uniform(0, 10)
+                        # prefer longer pieces from stronger takes; the seed breaks near-ties
+                        key = length * (0.5 + share) + self.rng.uniform(0, 10)
                         if best is None or key > best[0]:
                             best = (key, path, info, off, length)
                         break
